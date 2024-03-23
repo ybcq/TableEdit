@@ -1,0 +1,482 @@
+import win.ui;import win.inputBox;import win.ui.menu;import win.ui.minmax;import console;
+import process;import time;import fsys.dlg;import com.picture;import mouse;import io;
+import win.ui.minmax;import fsys.file;import win.ui.toolbar;import skin.sharp;import config;
+import key;
+/*DSG{{*/
+var mainForm = win.form(text=" Table表编辑器";right=959;bottom=579)
+mainForm.add(
+ApplyX={cls="button";text="修改行";left=462;top=52;right=533;bottom=75;dl=1;dt=1;z=14};
+ApplyY={cls="button";text="修改列";left=462;top=80;right=533;bottom=103;dl=1;dt=1;z=15};
+CopyRight={cls="plus";text="CopyRight 御坂初琴工作室 2020-2025";left=730;top=556;right=950;bottom=571;align="right";db=1;dr=1;notify=1;transparent=1;z=19};
+Help={cls="button";left=9;top=554;right=29;bottom=574;db=1;dl=1;image=$"\res\Help.ico";z=18};
+Str1={cls="edit";left=560;top=67;right=666;bottom=89;align="right";dl=1;dt=1;edge=1;multiline=1;z=12};
+Str1to2={cls="button";text="替换 >>";left=674;top=52;right=733;bottom=75;dl=1;dt=1;z=16};
+Str2={cls="edit";left=740;top=67;right=856;bottom=89;dl=1;dr=1;dt=1;edge=1;multiline=1;z=13};
+Str2to1={cls="button";text="<< 替回";left=674;top=80;right=733;bottom=103;dl=1;dt=1;z=17};
+StrX={cls="edit";left=195;top=53;right=455;bottom=75;dl=1;dt=1;edge=1;multiline=1;z=6};
+StrY={cls="edit";left=195;top=81;right=455;bottom=103;dl=1;dt=1;edge=1;multiline=1;z=10};
+X={cls="edit";text="0";left=39;top=53;right=104;bottom=75;align="right";dl=1;dt=1;edge=1;multiline=1;z=4};
+Y={cls="edit";text="0";left=39;top=81;right=104;bottom=103;align="right";dl=1;dt=1;edge=1;multiline=1;z=8};
+groupbox2={cls="groupbox";text="行列编辑";left=10;top=32;right=544;bottom=112;bgcolor=12632256;color=15793151;dl=1;dt=1;edge=1;z=2};
+groupbox3={cls="groupbox";text="全局替换";left=551;top=32;right=867;bottom=111;bgcolor=12632256;color=15793151;dl=1;dr=1;dt=1;edge=1;z=11};
+listview={cls="listview";left=10;top=118;right=950;bottom=551;acceptfiles=1;db=1;dl=1;dr=1;dt=1;edge=1;gridLines=1;z=1};
+picturebox={cls="picturebox";left=880;top=41;right=944;bottom=105;dr=1;dt=1;image=$"\res\excel.ico";notify=1;z=20};
+static2={cls="static";text="第";left=22;top=56;right=39;bottom=79;dl=1;dt=1;transparent=1;z=3};
+static3={cls="static";text="行批量修改为";left=113;top=56;right=192;bottom=72;dl=1;dt=1;transparent=1;z=5};
+static4={cls="static";text="第";left=22;top=84;right=39;bottom=107;dl=1;dt=1;transparent=1;z=7};
+static5={cls="static";text="列批量修改为";left=113;top=84;right=192;bottom=100;dl=1;dt=1;transparent=1;z=9}
+)
+/*}}*/
+
+//io.open();
+
+var file,err = io.open('Table表编辑器.dbg')
+if(file != null){
+	io.open()
+	win.show(console.getWindow(),6)
+}
+
+mainForm.listview.insertColumn("编号",40)
+mainForm.listview.insertColumn("内容",120)
+mainForm.listview.insertColumn("备注",-1)
+mainForm.listview.fullRow = true;
+
+mainForm.filename = "";
+mainForm.extraStr = ""; 
+
+arg = _CMDLINE;
+//调用默认皮肤
+if(arg){
+	if(!string.find(arg, "NOSKIN")){
+		import skin.sharp;
+		skin.sharp.attach("\res\skin.she");
+	}
+}
+else {
+	import skin.sharp;
+	skin.sharp.attach("\res\skin.she");
+}
+
+var help = "Table表编辑器
+版本:" + config.__appVersion + "
+
+1.改为打开文件时自动判断列数
+2.增加了一个启动参数
+  -NOSKIN 不加载皮肤
+
+CopyRight
+御坂初琴软件屋
+2015-2020
+"
+
+mainForm.onClose = function(hwnd,message,wParam,lParam){
+    mainForm.saveList(fsys.getSpecial(0x5)+"\YBCQRJW.CO\lastTable.table")
+}
+
+//内部截图，全局变量是为了让其他窗口也能用这个函数
+function mainForm.shotPic(){
+    var filename = "屏幕截图" + tostring(time(,"%Y%m%d%H%M"))		
+	var path = fsys.dlg.save("位图文件(*.bmp)|*.bmp|", "保存全屏截屏", , mainForm.hwnd, , filename);
+	if(path){
+		win.delay(1000)
+		var bitmap = gdip.bitmap( com.picture.snap().CopyHandle() );
+		bitmap.save(path,60)
+	}
+}
+
+var toolbar = win.ui.toolbar(mainForm);
+toolbar.create( style = 0x1000/*_TBSTYLE_LIST*/ ); // 创建工具条
+toolbar.showLabel = false; //在按钮上显示文字
+toolbar.imageList = win.imageList( 16, 16 ).add($"\res\toolbar.gif",0xFF00FF/*透明色*/) ; 
+
+toolbar.add();// 添加分隔条
+//toolbar.add(提示名, 作用, 图标)
+toolbar.add("载入列表", function (id) {
+	mainForm.loadList()
+}, 2,);
+toolbar.add("附加列表", function (id) {
+	mainForm.addloadList()
+}, 2,);
+toolbar.add("保存列表", function (id) {
+	mainForm.saveList()
+}, 3);
+toolbar.add();// 添加分隔条
+toolbar.add("截取全屏", function (id) {
+	mainForm.shotPic();
+}, 8);
+toolbar.add();// 添加分隔条
+toolbar.add("增加一行", function (id) {
+	mainForm.addOne();
+}, 9);
+toolbar.add("插入一行", function (id) {
+	mainForm.addOneHere();
+}, 11);
+toolbar.add("删除一行", function (id) {
+	mainForm.delOne();
+}, 12);
+toolbar.add();// 添加分隔条
+toolbar.add("清空列表", function (id) {
+	mainForm.clearAll();
+}, 1);
+toolbar.add();// 添加分隔条
+toolbar.add("重置序号", function (id) {
+    mainForm.resetAll();
+}, 14);
+
+//载入功能
+function mainForm.loadList(path){
+    if(path == null) path = fsys.dlg.open("所有文件(*.*)|*.*|", "载入Table表格", , mainForm.hwnd);
+	//没有直接取消退出
+	if(path == null) return 0;
+	/* //老版本的获取列的功能
+	inputbox = win.inputBox(mainForm.hwnd)
+	inputbox.text = mainForm.text
+	inputbox.info.text = "该文件有多少列？"
+	inputbox.input.text = "";
+	//skin.sharp.attach("\res\skin\0020.she");
+	numstr = inputbox.doModal();
+	*/
+	var str = string.load(path); //获取字符串
+	if(str == null) return false;
+	var matchstr = "\[([\d]+)\]"
+	numtable = {};
+	numstr = 1;
+	//var i = 1;
+	for a in string.gmatch(str, matchstr, 1) { 
+		if(table.find(numtable, a) == null){
+			numtable[numstr] = a;numstr++
+		}
+	}
+	//io.print(table.unpack(numtable))
+	//io.print(table.range(numtable))
+	//io.print(numstr);
+	
+	if(numstr){
+		//var num = tonumber(numstr)
+		var num = numstr - 1;
+		if(num == null)num = 2;
+		mainForm.listview.clear(true)
+		mainForm.listview.insertColumn("编号",40)
+		for(i = 0; num - 2; 1)
+			mainForm.listview.insertColumn("内容" + tostring(i + 2),120)
+		mainForm.listview.insertColumn("备注",-1)	
+	}
+	
+	if(string.load(path) != null){
+		mainForm.listview.items = eval(string.load(path));
+		//var listmax = mainForm.listview.columnCount;
+		//io.print(listmax);
+		//for(i = 1; listmax; 1){
+			//mainForm.listview.fillParent(i);
+			//mainForm.listview.adjust(i);
+		//}
+		var file = io.splitpath(path)
+		mainForm.filename = file.file;
+		mainForm.text = " Table表编辑器 - " + mainForm.filename;
+	}
+	
+	
+	//获得附加文字，未实现
+	/*
+	var tableitems = {};
+	tableitems = eval(string.load(path))
+	//tableitems = table.sort(tableitems)
+	//io.print(string.load(path))
+	//io.print(table.tostring(tableitems))
+	mainForm.extraStr = string.replace(string.load(path), table.tostring(tableitems), "");
+	//io.print(mainForm.extraStr);
+	*/
+}
+
+//skin.sharp.attach("\res\skin\0020.she");
+if(_CMDLINE != null && _CMDLINE != ""){
+    var s = string.replace(_CMDLINE, '"', "")
+	mainForm.loadList(s);
+}
+
+//附加载入
+function mainForm.addloadList(path){
+	if(path == null) path = fsys.dlg.open("所有文件(*.*)|*.*|", "附加Table表格", , mainForm.hwnd);
+	if(path == null) return 0;
+	if(string.load(path) != null){
+		var tab = table.concat(mainForm.listview.items, eval(string.load(path)))
+		mainForm.listview.items = tab;
+		var file = io.splitpath(path)
+		mainForm.filename = mainForm.filename + " + "+ file.file;
+		mainForm.text = "Table表编辑器 - " + mainForm.filename;
+	}
+}
+
+//保存列表
+function mainForm.saveList(path){
+    var filename = mainForm.filename + tostring(time(,"_%Y%m%d%H%M"))
+	if(path == null)path = fsys.dlg.save("所有文件(*.*)|*.*|", "保存Table文件", , mainForm.hwnd, , filename);
+	if(path == null) return 0;
+	string.save(path, table.tostring(mainForm.listview.items));
+}
+
+//增加一条
+function mainForm.addOne(){
+	var listmax = mainForm.listview.count;
+	//var line = mainForm.listview.getSelection(0);
+	mainForm.listview.addItem(
+		{
+			tostring(listmax+1);
+		}
+	);
+}
+
+//插入一条
+function mainForm.addOneHere(){
+	var listmax = mainForm.listview.count;
+	var line = mainForm.listview.getSelection(0);
+	mainForm.listview.addItem(
+		{
+			tostring(line);
+		},line + 1
+	);
+	//for(i=1;mainForm.listview.count;1)
+		//mainForm.listview.setItemText(tostring(i),i,1);
+}
+
+//删除一行
+function mainForm.delOne(){
+	var line = mainForm.listview.getSelection(0);
+	if(line)mainForm.listview.delItem(line);
+}
+
+//清空所有
+function mainForm.clearAll(){
+	mainForm.listview.clear(true);
+	mainForm.listview.insertColumn("编号",40)
+	mainForm.listview.insertColumn("内容",120)
+	mainForm.listview.insertColumn("备注",-1)
+}
+
+//重置编号
+function mainForm.resetAll(){
+	for(i=1;mainForm.listview.count;1)
+		mainForm.listview.setItemText(tostring(i),i,1);
+}
+
+//原地编辑功能
+mainForm.listview.onnotify = function(id,code,ptr){
+    if(code==0xFFFFFF4B){// 滚动条 
+        if(!mainForm.listview.editlable) return ; 
+        edit = mainForm.listview.editlable;
+        rc=mainForm.listview.getItemRect(edit.listViewNotifyMessage.iItem,edit.listViewNotifyMessage.iSubItem,,2/*_LVIR_LABEL*/);
+        if(rc.top<rc.bottom-rc.top){//选中行向上滚动到了列标题及其以上的位置，不处理的话编辑框会覆盖掉列标题。
+            rc.top-=math.abs(rc.bottom);rc.bottom=rc.top;
+        }else {
+            rc.right += 5; rc.bottom += 5;
+        }
+        edit.setRect(rc);
+        mainForm.listview.redraw();//经测试，这行会引起滚动条位置变化时listview控件闪烁，如果在意这个问题，请主动给listview控件增加_WS_CLIPCHILDREN样式，可以省略掉这行。
+    }
+    if(code=0xFFFFFFFD/*_NM_CLICK*/ ){
+        var notifyMessage = mainForm.listview.getNotifyMessage(code,ptr);
+        if( ! notifyMessage.iItem && notifyMessage.iSubItem ) return ; 
+        
+        var edit = mainForm.listview.editlable
+        if( ! edit ){
+            mainForm.listview.addCtrl(
+                editlable = { 
+                    cls="edit";font = LOGFONT( h = 11 );left = 0;top = 0;
+                    right = 50;bottom = 50;autoResize = false ;hide = 1;edge = 1;  
+                    wndproc = function( hwnd, message, wParam, lParam ){
+                        if( ( message = 0x8/*_WM_KILLFOCUS*/) 
+                            || message == 0x101/*_WM_KEYUP*/ && wParam == 0xD/*_VK_RETURN*/){
+                            // 按下了回车键或失去焦点，更新listview数据
+                            owner.parent.setItemText( owner.text, owner.listViewNotifyMessage.iItem
+                                , owner.listViewNotifyMessage.iSubItem );
+                            owner.show(false);
+                        }
+                    }  
+                }
+            )  
+            edit = mainForm.listview.editlable;
+        }
+        edit.listViewNotifyMessage = notifyMessage; 
+        edit.text=mainForm.listview.getItemText(notifyMessage.iItem,notifyMessage.iSubItem);
+        var rc=mainForm.listview.getItemRect( notifyMessage.iItem,notifyMessage.iSubItem,,2/*_LVIR_LABEL*/ )
+        rc.right += 5; rc.bottom += 5;
+        edit.setRect(rc);
+        edit.show();
+        edit.setFocus();// 获取焦点
+    }
+    if(code = 0xFFFFFFFE/*_NM_CLICK*/) {
+        //console.log("左键单击(按松一次)")
+        mouseLeftdown = false;        
+    }
+    if(code = 0xFFFFFF93/*_LVN_BEGINDRAG*/) {
+        //先判断是否在有效行上点击
+        if(mouseLeftdown){
+        var item = mainForm.listview.hitTest(plusAkeydownPosX,plusAkeydownPosY,true);
+            if(item){
+                preItem = item;
+                var rc = mainForm.listview.getItemRect(item);
+                mainForm.listview.addCtrl(
+                    plusA ={ cls="plus";left=0;top=0;right=50;bottom=50;autoResize=false ;bgcolor=12639424;hide=1;edge=1; clip=1;z=10; }
+                )
+                mainForm.listview.plusA.setRect(rc);
+                mainForm.listview.plusA.show();
+                mouseDragmove = true;
+                bx,by = win.toClient(mainForm.listview.plusA.hwnd,plusAkeydownPosX,plusAkeydownPosY);
+                    
+            }
+    	}
+    }
+    if(code = 0xFFFFFFFB/*_NM_RCLICK*/)  {
+    	var x,y = mouse.getPos();
+    	mainForm.popmenu.popup(x,y,true);//弹出菜单
+    } 
+}
+
+mainForm.listview.wndproc = function(hwnd,message,wParam,lParam){
+    select( message ) { 
+        case 0x201/*_WM_LBUTTONDOWN*/
+        { 
+            //鼠标左键按下了
+			mouseLeftdown = true;
+			//记录下此时的xy
+			plusAkeydownPosX,plusAkeydownPosY = mouse.getPos();
+        }
+        case 0x202/*_WM_LBUTTONUP*/
+        { 
+            mouseLeftdown = false;
+            if(mouseDragmove){
+                mouseDragmove = false;
+                mainForm.listview.plusA.hide = true;
+                if(newItem != preItem){
+                    var tabtext = {};
+                    for(i=1;mainForm.listview.columnCount;1){
+                        table.push(tabtext,mainForm.listview.getItemText(preItem,i));        
+                    }
+                    mainForm.listview.delItem(preItem);
+                    mainForm.listview.addItem(tabtext,newItem);
+                        
+                }
+                for(i = 0; mainForm.listview.count; 1){
+					mainForm.listview.setItemText(tostring(i), i, 1);
+				}
+            }
+               
+        }
+        case 0x200/*_WM_MOUSEMOVE*/{
+            if(mouseDragmove){
+                var x,y = mouse.getPos();
+                var fx,fy = win.toClient(mainForm.listview.hwnd,x,y)
+                newItem = mainForm.listview.hitTest();
+                mainForm.listview.selIndex = newItem;
+                mainForm.listview.plusA.setPos(fx-bx,fy-by);
+                mainForm.listview.plusA.redraw();
+                //mainForm.listview.redraw();
+            }
+        }
+        case 0x233{//文件拖放
+        	//var pathstr = win.getDropFile(wParam)[1]
+        	if(mainForm.listview.count = 0)
+        		mainForm.loadList(win.getDropFile(wParam)[1]);
+        	else
+        		mainForm.addloadList(win.getDropFile(wParam)[1]);
+        }
+    }
+}
+
+mainForm.Str1to2.oncommand = function(id,event){
+    var k = 0;
+	for(i = 0; mainForm.listview.count; 1)
+		for(j = 2; mainForm.listview.columnCount; 1){
+			var str = mainForm.listview.getItemText(i, j)
+			if(str != null)
+				if(string.find(str, mainForm.Str1.text))k++;
+				mainForm.listview.setItemText(string.replace(str, mainForm.Str1.text, mainForm.Str2.text), i, j)
+			}
+	mainForm.Str2.showInfoTip("已完成替换", "共替换" + tonumber(k) + "次。")
+}
+
+mainForm.Str2to1.oncommand = function(id,event){
+	var k = 0;
+	for(i = 0; mainForm.listview.count; 1)
+		for(j = 2; mainForm.listview.columnCount; 1){
+			var str = mainForm.listview.getItemText(i, j)
+			if(str != null)
+				if(string.find(str, mainForm.Str2.text))k++;
+				mainForm.listview.setItemText(string.replace(str, mainForm.Str2.text, mainForm.Str1.text), i, j)
+				
+			}
+	mainForm.Str1.showInfoTip("已完成替换", "共替换" + tonumber(k) + "次。")
+}
+
+mainForm.ApplyX.oncommand = function(id,event){
+	for(i=1; mainForm.listview.columnCount; 1)
+		mainForm.listview.setItemText(mainForm.StrX.text, tonumber(mainForm.X.text), i);
+}
+
+mainForm.ApplyY.oncommand = function(id,event){
+	for(i=1; mainForm.listview.count; 1)
+		mainForm.listview.setItemText(mainForm.StrY.text, i, tonumber(mainForm.Y.text));
+}
+
+mainForm.Help.oncommand = function(id,event){
+	win.msgbox(help)
+}
+
+mainForm.filemenu = win.ui.popmenu(mainForm);//创建弹出菜单
+mainForm.filemenu.add('载入列表...',function(id){mainForm.loadList()});
+mainForm.filemenu.add('附加列表...',function(id){mainForm.addloadList()});
+mainForm.filemenu.add('保存列表...',function(id){mainForm.saveList()});
+mainForm.filemenu.add();
+mainForm.filemenu.add('关闭',function(id){mainForm.close();})
+
+mainForm.screenmenu = win.ui.popmenu(mainForm);//创建弹出菜单
+mainForm.screenmenu.add('全屏截图...',function(id){mainForm.shotPic();});
+//mainForm.screenmenu.add('指定范围截图...',function(id){process(,"SnippingTool.exe")});
+//mainForm.screenmenu.add();
+
+mainForm.editmenu = win.ui.popmenu(mainForm);//创建弹出菜单
+mainForm.editmenu.add('增加一行',function(id){mainForm.addOne();});
+mainForm.editmenu.add('插入一行',function(id){mainForm.addOneHere();});
+mainForm.editmenu.add('删除一行',function(id){mainForm.delOne();});
+mainForm.editmenu.add();
+mainForm.editmenu.add('清空列表',function(id){mainForm.clearAll();});
+mainForm.editmenu.add();
+mainForm.editmenu.add('重置序号',function(id){mainForm.resetAll();});
+
+mainForm.helpmenu = win.ui.popmenu(mainForm);//创建弹出菜单
+mainForm.helpmenu.add('作者的其他软件',function(id){process.execute("http://www.ybcqrjw.cn")});
+mainForm.helpmenu.add();//分隔线
+mainForm.helpmenu.add('关于...',function(id){
+	mainForm.Help.oncommand();
+});
+
+//生成菜单
+var menu = win.ui.menu(mainForm);//创建主菜单
+menu.add('文件(Files)',mainForm.filemenu);
+menu.add('编辑(Edit)',mainForm.editmenu);
+menu.add('图片(Screen)',mainForm.screenmenu);
+menu.add('关于(About)',mainForm.helpmenu);
+
+mainForm.picturebox.oncommand = function(id,event){
+	process.execute("http://www.ybcqrjw.cn")
+}
+
+mainForm.popmenu = win.ui.popmenu(mainForm);//创建弹出菜单
+mainForm.popmenu.add('删除',function(id){
+	//在下面输入菜单响应代码
+	mainForm.listview.delItem( mainForm.listview.selIndex )
+});
+
+mainForm.CopyRight.oncommand = function(id,event){
+	process.execute(config.__website);
+}
+
+mainForm.CopyRight.skin(
+	color = {  
+		hover = 0xFFFF0000; //鼠标移上去的颜色
+		active = 0xFF00FF00; //鼠标按下去的颜色
+	}
+)
+
+mainForm.show();
+return win.loopMessage();
